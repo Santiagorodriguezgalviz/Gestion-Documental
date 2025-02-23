@@ -1,7 +1,11 @@
 import * as XLSX from 'xlsx-js-style';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileRecord } from '../types';
+import { FileRecord } from '../types/index';
+
+interface ExportRow {
+  [key: string]: string | number;  // Índice de firma para permitir acceso dinámico
+}
 
 export const exportToExcel = (data: FileRecord[], year?: number) => {
   try {
@@ -30,20 +34,20 @@ export const exportToExcel = (data: FileRecord[], year?: number) => {
       'PRESTADO A': item.borrowedTo || '-',
       'FECHA DE PRÉSTAMO': item.borrowedDate || '-',
       'FECHA DE DEVOLUCIÓN': item.returnDate || '-'
-    }));
+    } as ExportRow));
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Archivos");
 
     // Ajustar el ancho de las columnas
-    const maxWidth = formattedData.reduce((acc, row) => {
+    const maxWidth = formattedData.reduce((acc: Record<string, number>, row: ExportRow) => {
       Object.keys(row).forEach(key => {
         const length = String(row[key]).length;
         acc[key] = Math.max(acc[key] || 0, length);
       });
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
     worksheet['!cols'] = Object.keys(maxWidth).map(key => ({
       wch: Math.min(maxWidth[key] + 2, 50)

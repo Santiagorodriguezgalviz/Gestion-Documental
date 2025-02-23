@@ -9,7 +9,7 @@ interface FileState {
   addFile: (file: Omit<FileRecord, 'id'>) => Promise<void>;
   updateFile: (id: string, file: Partial<FileRecord>) => Promise<void>;
   deleteFile: (id: string) => Promise<void>;
-  updateFileStatus: (id: string, status: string, borrowedTo?: string) => Promise<void>;
+  updateFileStatus: (id: string, status: 'DISPONIBLE' | 'PRESTADO', borrowedTo?: string) => Promise<void>;
   setFilter: (key: string, value: string) => void;
   clearFilters: () => void;
   filteredFiles: () => FileRecord[];
@@ -38,7 +38,7 @@ export const useFileStore = create<FileState>((set, get) => ({
     await fileService.updateFileStatus(id, status, borrowedTo);
     set(state => ({
       files: state.files.map(f => 
-        f.id === id ? { ...f, status, borrowedTo } : f
+        f.id === id ? { ...f, status: status as 'DISPONIBLE' | 'PRESTADO', borrowedTo } : f
       )
     }));
   },

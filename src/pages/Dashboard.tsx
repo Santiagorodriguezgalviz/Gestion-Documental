@@ -1,13 +1,18 @@
-import React from 'react';
+import { useState } from 'react';
 import { DataTable } from '../components/DataTable';
 import { Sidebar } from '../components/Sidebar';
 import { Navbar } from '../components/Navbar';
 import { Files } from 'lucide-react';
 
 export function Dashboard() {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
-      <Sidebar />
+      <Sidebar 
+        isCollapsed={isSidebarCollapsed}
+        onCollapsedChange={setIsSidebarCollapsed}
+      />
       <Navbar />
       
       <main className="ml-64 pt-16">

@@ -98,8 +98,8 @@ export function useAuth() {
       setUser({
         uid: result.user.uid,
         email: result.user.email,
-        displayName: result.user.displayName || result.user.email?.split('@')[0],
-        photoURL: result.user.photoURL,
+        displayName: result.user.displayName || result.user.email?.split('@')[0] || null,
+        photoURL: result.user.photoURL || null,
         role: 'Administrador'
       });
 

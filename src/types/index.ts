@@ -1,3 +1,5 @@
+import { Timestamp } from 'firebase/firestore';
+
 export interface FileRecord {
   id: string;
   itemNumber: number;
@@ -15,6 +17,6 @@ export interface FileRecord {
   returnDate?: string | null;
   block?: string;
   shelf?: string;
-  createdAt?: any;
-  updatedAt?: any;
-} 
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}

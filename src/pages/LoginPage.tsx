@@ -32,7 +32,7 @@ export function LoginPage() {
       } else {
         setError('Credenciales inválidas');
       }
-    } catch (error) {
+    } catch {
       setError('Error al iniciar sesión');
     }
   };
