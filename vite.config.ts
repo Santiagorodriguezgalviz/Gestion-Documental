@@ -7,13 +7,28 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      include: ['stream', 'buffer']
+      include: ['stream', 'buffer', 'util', 'process'],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true
+      }
     })
   ],
+  resolve: {
+    alias: {
+      stream: 'stream-browserify',
+      buffer: 'buffer'
+    }
+  },
+  define: {
+    'process.env': {},
+    global: {}
+  },
   build: {
-    rollupOptions: {
-      external: ['stream']
-    },
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
   },
   optimizeDeps: {
     exclude: ['xlsx-js-style']

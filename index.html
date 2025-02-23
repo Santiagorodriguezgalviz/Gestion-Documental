@@ -12,6 +12,10 @@
       } else {
         document.documentElement.classList.remove('dark')
       }
+      window.global = window;
+      window.process = {
+        env: { NODE_ENV: "development" }
+      }
     </script>
   </head>
   <body>
