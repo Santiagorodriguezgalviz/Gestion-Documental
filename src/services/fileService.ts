@@ -118,11 +118,20 @@ export const fileService = {
 
   async deleteFile(id: string) {
     try {
-      await deleteDoc(doc(db, FILES_COLLECTION, id));
-      return id;
+      const fileRef = doc(db, FILES_COLLECTION, id);
+      await deleteDoc(fileRef);
+      
+      // Obtener los archivos actualizados después de eliminar
+      const querySnapshot = await getDocs(collection(db, FILES_COLLECTION));
+      const files = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FileRecord[];
+      
+      return files;
     } catch (error) {
       console.error('Error al eliminar archivo:', error);
-      throw error;
+      throw new Error('Error al eliminar el archivo');
     }
   }
 }; 

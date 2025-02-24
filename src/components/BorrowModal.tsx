@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, X, AlertCircle } from 'lucide-react';
 
 interface BorrowModalProps {
@@ -10,6 +10,21 @@ interface BorrowModalProps {
 
 export function BorrowModal({ isOpen, onClose, onConfirm, fileName }: BorrowModalProps) {
   const [borrowerName, setBorrowerName] = useState('');
+
+  // Limpiar el input cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      setBorrowerName('');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (borrowerName.trim()) {
+      onConfirm(borrowerName.trim());
+      setBorrowerName(''); // Limpiar después de confirmar
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -56,43 +71,47 @@ export function BorrowModal({ isOpen, onClose, onConfirm, fileName }: BorrowModa
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Nombre del Solicitante
-              </label>
-              <input
-                type="text"
-                value={borrowerName}
-                onChange={(e) => setBorrowerName(e.target.value)}
-                className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 
-                  border border-gray-200 dark:border-gray-700 rounded-lg
-                  text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400
-                  focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 
-                  focus:border-blue-500 dark:focus:border-blue-400
-                  transition-all"
-                placeholder="Ingrese el nombre del solicitante"
-              />
-            </div>
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-2">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Nombre del Solicitante
+                </label>
+                <input
+                  type="text"
+                  value={borrowerName}
+                  onChange={(e) => setBorrowerName(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 
+                    border border-gray-200 dark:border-gray-700 rounded-lg
+                    text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400
+                    focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 
+                    focus:border-blue-500 dark:focus:border-blue-400
+                    transition-all"
+                  placeholder="Ingrese el nombre del solicitante"
+                  autoFocus
+                />
+              </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 mt-6">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 
-                hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={() => onConfirm(borrowerName)}
-              disabled={!borrowerName.trim()}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 
-                hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50
-                disabled:cursor-not-allowed rounded-lg transition-colors"
-            >
-              Aceptar
-            </button>
+              {/* Footer */}
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 
+                    hover:bg-gray-100 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!borrowerName.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 
+                    hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50
+                    disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  Aceptar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

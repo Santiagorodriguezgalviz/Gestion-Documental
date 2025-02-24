@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { X, Calendar, FileText, Box, Layers, FileSpreadsheet, Grid, LayoutGrid } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, FileText, Box, Layers, Grid, LayoutGrid, ChevronUp, ChevronDown } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { FileRecord, StorageUnit } from '../types';
 import DatePicker, { registerLocale } from 'react-datepicker';
-import es from 'date-fns/locale/es';
+import { es } from 'date-fns/locale/es';
 import "react-datepicker/dist/react-datepicker.css";
 import { fileService } from '../services/fileService';
+import * as Select from '@radix-ui/react-select'
+import { Check } from 'lucide-react'
 
 registerLocale('es', es);
 
@@ -13,29 +15,61 @@ interface FileModalProps {
   isOpen: boolean;
   onClose: () => void;
   fileToEdit?: FileRecord;
+  onSuccess: (message: string) => void;
+  onError: (message: string) => void;
 }
 
-export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
-  const addFile = useFileStore((state) => state.addFile);
-  const updateFile = useFileStore((state) => state.updateFile);
-  const setFiles = useFileStore((state) => state.setFiles);
+// Componente SelectItem reutilizable
+const SelectItem = React.forwardRef<HTMLDivElement, Select.SelectItemProps>(
+  ({ children, ...props }, forwardedRef) => {
+    return (
+      <Select.Item
+        className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-gray-100 dark:focus:bg-gray-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+        {...props}
+        ref={forwardedRef}
+      >
+        <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+          <Select.ItemIndicator>
+            <Check className="h-4 w-4" />
+          </Select.ItemIndicator>
+        </span>
+        <Select.ItemText>{children}</Select.ItemText>
+      </Select.Item>
+    )
+  }
+)
+SelectItem.displayName = 'SelectItem'
 
-  const [formData, setFormData] = useState<Partial<FileRecord>>(
-    fileToEdit || {
-      itemNumber: 0,
-      code: '',
-      name: '',
-      startDate: '',
-      endDate: '',
-      storageUnit: 'CARPETA',
-      folioStart: 1,
-      folioEnd: 1,
-      support: 'PAPEL',
-      status: 'DISPONIBLE',
-      block: '',
-      shelf: ''
-    }
-  );
+export function FileModal({ isOpen, onClose, fileToEdit, onSuccess, onError }: FileModalProps) {
+  const setFiles = useFileStore((state) => state.setFiles);
+  
+  // Estado inicial por defecto
+  const defaultFormData: Partial<FileRecord> = {
+    itemNumber: 0,
+    code: '',
+    name: '',
+    startDate: '',
+    endDate: '',
+    storageUnit: 'CARPETA' as StorageUnit,
+    folioStart: 1,
+    folioEnd: 1,
+    support: 'PAPEL',
+    status: 'DISPONIBLE',
+    block: '',
+    shelf: ''
+  };
+
+  const [formData, setFormData] = useState<Partial<FileRecord>>(fileToEdit || defaultFormData);
+
+  // Resetear el formulario cuando cambie fileToEdit o cuando se cierre el modal
+  useEffect(() => {
+    setFormData(fileToEdit || defaultFormData);
+  }, [fileToEdit, isOpen]);
+
+  const handleClose = () => {
+    setFormData(defaultFormData); // Limpiar formulario
+    onClose();
+  };
 
   const handleDateChange = (date: Date | null, field: 'startDate' | 'endDate') => {
     setFormData({
@@ -53,14 +87,20 @@ export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
         await fileService.addFile(formData as Omit<FileRecord, 'id'>);
       }
       
-      // Recargar los datos después de guardar
       const updatedFiles = await fileService.getFiles();
       setFiles(updatedFiles);
       
-      onClose();
-    } catch (error) {
-      console.error('Error al guardar archivo:', error);
-      alert('Error al guardar el archivo. Por favor, intente nuevamente.');
+      handleClose(); // Usar handleClose en lugar de onClose
+      onSuccess(fileToEdit 
+        ? 'Registro actualizado correctamente'
+        : 'Registro creado correctamente'
+      );
+
+    } catch {
+      onError(fileToEdit 
+        ? 'Error al actualizar el registro'
+        : 'Error al crear el registro'
+      );
     }
   };
 
@@ -73,7 +113,7 @@ export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
         {/* Overlay con fondo oscuro y animación */}
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-[0.5px] transition-all duration-300" 
-          onClick={onClose}
+          onClick={handleClose}
           aria-hidden="true"
         />
         
@@ -97,7 +137,7 @@ export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
                     {fileToEdit ? 'Editar Archivo' : 'Nuevo Archivo'}
                   </h2>
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="absolute right-4 top-4 p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
                     <span className="sr-only">Cerrar</span>
@@ -227,17 +267,33 @@ export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
                         <Box size={16} />
                         UNIDAD DE CONSERVACIÓN
                       </label>
-                      <select
+                      <Select.Root
                         value={formData.storageUnit}
-                        onChange={(e) => setFormData({ ...formData, storageUnit: e.target.value as StorageUnit })}
-                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 transition-all appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em_1em] bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%3E%3Cpath%20fill%3D%22%236B7280%22%20d%3D%22M5.293%207.293a1%201%200%20011.414%200L10%2010.586l3.293-3.293a1%201%200%20111.414%201.414l-4%204a1%201%200%2001-1.414%200l-4-4a1%201%200%20010-1.414z%22%2F%3E%3C%2Fsvg%3E')]"
-                        required
+                        onValueChange={(value) => setFormData({ ...formData, storageUnit: value as StorageUnit })}
                       >
-                        <option value="CAJA">CAJA</option>
-                        <option value="CARPETA">CARPETA</option>
-                        <option value="TOMO">TOMO</option>
-                        <option value="OTRO">OTRO</option>
-                      </select>
+                        <Select.Trigger className="inline-flex w-full items-center justify-between rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-500/20 hover:border-emerald-500 dark:hover:border-emerald-500/50 transition-colors">
+                          <Select.Value placeholder="Seleccionar unidad" />
+                          <Select.Icon>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                          </Select.Icon>
+                        </Select.Trigger>
+                        <Select.Portal>
+                          <Select.Content position="popper" sideOffset={4} className="z-[200] min-w-[220px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 animate-in fade-in-0 zoom-in-95">
+                            <Select.ScrollUpButton className="flex items-center justify-center h-[25px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-default border-b border-gray-200 dark:border-gray-700">
+                              <ChevronUp className="h-4 w-4" />
+                            </Select.ScrollUpButton>
+                            <Select.Viewport className="p-2">
+                              <SelectItem value="CAJA">CAJA</SelectItem>
+                              <SelectItem value="CARPETA">CARPETA</SelectItem>
+                              <SelectItem value="TOMO">TOMO</SelectItem>
+                              <SelectItem value="OTRO">OTRO</SelectItem>
+                            </Select.Viewport>
+                            <Select.ScrollDownButton className="flex items-center justify-center h-[25px] bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 cursor-default border-t border-gray-200 dark:border-gray-700">
+                              <ChevronDown className="h-4 w-4" />
+                            </Select.ScrollDownButton>
+                          </Select.Content>
+                        </Select.Portal>
+                      </Select.Root>
                     </div>
 
                     <div className="space-y-2">
@@ -288,7 +344,7 @@ export function FileModal({ isOpen, onClose, fileToEdit }: FileModalProps) {
                 <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-lg transition-all duration-200"
                   >
                     Cancelar

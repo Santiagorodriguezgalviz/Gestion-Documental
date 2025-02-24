@@ -159,3 +159,26 @@ input:focus, select:focus {
 .animate-fold {
   animation: fold 1.5s ease-out infinite alternate;
 }
+
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.animate-in {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  --tw-enter-opacity: initial;
+  --tw-enter-scale: initial;
+  --tw-enter-rotate: initial;
+  --tw-enter-translate-x: initial;
+  --tw-enter-translate-y: initial;
+}
+
+.slide-in-from-right-4 {
+  --tw-enter-translate-x: 1rem;
+}
+
+.fade-in {
+  --tw-enter-opacity: 0;
+}
