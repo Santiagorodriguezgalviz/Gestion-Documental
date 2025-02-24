@@ -20,6 +20,7 @@ import { AlertDialog } from './AlertDialog';
 import { Toast, ToastType } from './Toast';
 import * as Select from '@radix-ui/react-select';
 import React from 'react';
+import { ImportExportModal } from './ImportExportModal';
 
 const columnHelper = createColumnHelper<FileRecord>();
 
@@ -54,6 +55,7 @@ export function DataTable() {
     message: '',
     type: 'success'
   });
+  const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
   
   const files = useFileStore((state) => state.files);
   const filters = useFileStore((state) => state.filters);
@@ -458,6 +460,43 @@ export function DataTable() {
     setToast({ show: true, message, type });
   };
 
+  // Funciones para manejar importación/exportación
+  const handleImport = async (file: File) => {
+    try {
+      // Aquí iría la lógica de importación
+      setToast({
+        show: true,
+        message: 'Archivo importado correctamente',
+        type: 'success'
+      });
+      setIsImportExportModalOpen(false);
+    } catch (error) {
+      setToast({
+        show: true,
+        message: 'Error al importar el archivo',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleExport = async (type: 'excel' | 'pdf', year?: string) => {
+    try {
+      // Aquí iría la lógica de exportación
+      setToast({
+        show: true,
+        message: `Archivo exportado correctamente a ${type.toUpperCase()}`,
+        type: 'success'
+      });
+      setIsImportExportModalOpen(false);
+    } catch (error) {
+      setToast({
+        show: true,
+        message: 'Error al exportar el archivo',
+        type: 'error'
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Main Content */}
@@ -508,7 +547,7 @@ export function DataTable() {
               )}
 
               <button
-                onClick={() => setIsImportExportOpen(true)}
+                onClick={() => setIsImportExportModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium 
                   text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 
                   border border-gray-300 dark:border-gray-600 rounded-lg
@@ -734,6 +773,13 @@ export function DataTable() {
         title={alert.title}
         message={alert.message}
         type={alert.type}
+      />
+
+      <ImportExportModal
+        isOpen={isImportExportModalOpen}
+        onClose={() => setIsImportExportModalOpen(false)}
+        onImport={handleImport}
+        onExport={handleExport}
       />
 
       {toast.show && (
