@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileSpreadsheet, FileText, Download, Upload, X, Calendar } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
@@ -13,6 +13,13 @@ export function ImportExportModal({ isOpen, onClose, onImport, onExport }: Impor
   const [year, setYear] = useState('');
   const [dragActive, setDragActive] = useState(false);
   
+  // Limpiar el año cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      setYear('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleDownloadTemplate = () => {
@@ -240,13 +247,16 @@ export function ImportExportModal({ isOpen, onClose, onImport, onExport }: Impor
                   className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg
                     bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600
                     text-gray-900 dark:text-gray-100 placeholder-gray-500
-                    focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500/20"
+                    focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-500/20"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={() => onExport('excel', year)}
+                  onClick={() => {
+                    onExport('excel', year);
+                    setYear(''); // Limpiar después de exportar
+                  }}
                   className="flex items-center justify-center gap-2 px-4 py-2.5
                     bg-emerald-50 dark:bg-emerald-500/10 
                     hover:bg-emerald-100 dark:hover:bg-emerald-500/20
@@ -257,7 +267,10 @@ export function ImportExportModal({ isOpen, onClose, onImport, onExport }: Impor
                   Excel
                 </button>
                 <button
-                  onClick={() => onExport('pdf', year)}
+                  onClick={() => {
+                    onExport('pdf', year);
+                    setYear(''); // Limpiar después de exportar
+                  }}
                   className="flex items-center justify-center gap-2 px-4 py-2.5
                     bg-red-50 dark:bg-red-500/10 
                     hover:bg-red-100 dark:hover:bg-red-500/20

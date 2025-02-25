@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table';
 import { FileRecord } from '../types';
 import { useFileStore } from '../store/fileStore';
-import { FileText, FolderOpen, Pencil, Trash2, Plus, Calendar, Download, Grid, LayoutGrid, Search, RefreshCw, ChevronDown, Check, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FolderOpen, Pencil, Trash2, Plus, Calendar, Download, Grid, LayoutGrid, Search, RefreshCw, ChevronDown, Check, ChevronUp, ChevronLeft, ChevronRight, Box, Folder, Book, Info } from 'lucide-react';
 import { FileModal } from './FileModal';
 import { ImportExportMenu } from './ImportExportMenu';
 import { BorrowModal } from './BorrowModal';
@@ -21,6 +21,37 @@ import { Toast, ToastType } from './Toast';
 import * as Select from '@radix-ui/react-select';
 import React from 'react';
 import { ImportExportModal } from './ImportExportModal';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import * as Popover from '@radix-ui/react-popover';
+
+interface ExportData {
+  'NO. ITEM': number;
+  'CÓDIGO': string;
+  'NOMBRE DE LAS SERIES': string;
+  'FECHA INICIAL': string;
+  'FECHA FINAL': string;
+  'BLOQUE': string;
+  'ENTREPAÑO': string;
+  'UNIDAD DE CONSERVACIÓN': string;
+  'SOPORTE': string;
+  'ESTADO': string;
+  'PRESTADO A': string;
+}
+
+// Agregar la definición de tipo para autoTable
+interface JsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: {
+    head: string[][];
+    body: (string | number)[][];
+    startY: number;
+    styles: object;
+    headStyles: object;
+    alternateRowStyles: object;
+    margin: { top: number };
+  }) => void;
+}
 
 const columnHelper = createColumnHelper<FileRecord>();
 
@@ -189,9 +220,79 @@ export function DataTable() {
     columnHelper.accessor('storageUnit', {
       header: 'UNIDAD DE CONSERVACIÓN',
       cell: (info) => (
-        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-md text-sm text-gray-900 dark:text-gray-100">
-          {info.getValue()}
-        </span>
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <button className="px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 
+              bg-emerald-50 dark:bg-emerald-900/20 rounded-lg hover:bg-emerald-100 
+              dark:hover:bg-emerald-900/30 transition-colors flex items-center gap-2">
+              <Box className="h-4 w-4" />
+              Ver detalles
+            </button>
+          </Popover.Trigger>
+
+          <Popover.Portal>
+            <Popover.Content
+              className="z-50 w-72 rounded-lg bg-white dark:bg-gray-800 shadow-lg 
+                ring-1 ring-black/5 dark:ring-white/5 p-4 animate-in 
+                zoom-in-95 duration-200"
+              sideOffset={5}
+            >
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                  <Box className="h-4 w-4" />
+                  Detalles de Conservación
+                </h3>
+                
+                <div className="space-y-2">
+                  {info.row.original.boxNumber && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Box className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600 dark:text-gray-300">
+                        Caja: {info.row.original.boxNumber}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {info.row.original.folderNumber && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Folder className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600 dark:text-gray-300">
+                        Carpeta: {info.row.original.folderNumber}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {info.row.original.volumeNumber && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Book className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600 dark:text-gray-300">
+                        Tomo: {info.row.original.volumeNumber}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Si no hay ningún dato, mostrar mensaje */}
+                  {!info.row.original.boxNumber && 
+                   !info.row.original.folderNumber && 
+                   !info.row.original.volumeNumber && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                      No hay detalles adicionales
+                    </div>
+                  )}
+                </div>
+
+                <div className="h-px bg-gray-200 dark:bg-gray-700" />
+
+                <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                  <Info className="h-3.5 w-3.5" />
+                  Tipo principal: {info.row.original.storageUnit}
+                </div>
+              </div>
+
+              <Popover.Arrow className="fill-white dark:fill-gray-800" />
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       ),
     }),
     columnHelper.accessor('support', {
@@ -245,14 +346,14 @@ export function DataTable() {
             >
               <FolderOpen className="h-4 w-4" />
             </button>
-            <button
+          <button
               onClick={() => handleDelete(file)}
               className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-              title="Eliminar"
-            >
+            title="Eliminar"
+          >
               <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
+          </button>
+        </div>
         );
       },
     }),
@@ -463,7 +564,8 @@ export function DataTable() {
   // Funciones para manejar importación/exportación
   const handleImport = async (file: File) => {
     try {
-      // Aquí iría la lógica de importación
+      console.log('Archivo a importar:', file);
+      // TODO: Implementar lógica de importación
       setToast({
         show: true,
         message: 'Archivo importado correctamente',
@@ -471,6 +573,7 @@ export function DataTable() {
       });
       setIsImportExportModalOpen(false);
     } catch (error) {
+      console.error('Error al importar:', error);
       setToast({
         show: true,
         message: 'Error al importar el archivo',
@@ -479,16 +582,123 @@ export function DataTable() {
     }
   };
 
-  const handleExport = async (type: 'excel' | 'pdf', year?: string) => {
+  const handleExport = (type: 'excel' | 'pdf', year?: string) => {
     try {
-      // Aquí iría la lógica de exportación
+      // Filtrar los datos por año si se especifica
+      let dataToExport = files;
+      if (year) {
+        dataToExport = files.filter(file => {
+          const fileYear = file.startDate ? new Date(file.startDate).getFullYear().toString() : '';
+          return fileYear === year;
+        });
+      }
+
+      // Preparar los datos para exportar
+      const exportData: ExportData[] = dataToExport.map((file, index) => ({
+        'NO. ITEM': index + 1,
+        'CÓDIGO': file.code || '-',
+        'NOMBRE DE LAS SERIES': file.name,
+        'FECHA INICIAL': formatDate(file.startDate),
+        'FECHA FINAL': formatDate(file.endDate),
+        'BLOQUE': file.block || '-',
+        'ENTREPAÑO': file.shelf || '-',
+        'UNIDAD DE CONSERVACIÓN': file.storageUnit,
+        'SOPORTE': file.support,
+        'ESTADO': file.status,
+        'PRESTADO A': file.borrowedTo || '-'
+      }));
+
+      if (type === 'excel') {
+        // Crear una nueva hoja de trabajo
+        const ws = XLSX.utils.json_to_sheet(exportData);
+
+        // Ajustar anchos de columna
+        const colWidths = [
+          { wch: 8 },   // NO. ITEM
+          { wch: 12 },  // CÓDIGO
+          { wch: 40 },  // NOMBRE DE LAS SERIES
+          { wch: 15 },  // FECHA INICIAL
+          { wch: 15 },  // FECHA FINAL
+          { wch: 10 },  // BLOQUE
+          { wch: 12 },  // ENTREPAÑO
+          { wch: 25 },  // UNIDAD DE CONSERVACIÓN
+          { wch: 12 },  // SOPORTE
+          { wch: 15 },  // ESTADO
+          { wch: 20 }   // PRESTADO A
+        ];
+        ws['!cols'] = colWidths;
+
+        // Crear libro de trabajo y agregar la hoja
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Registros");
+
+        // Generar el nombre del archivo
+        const fileName = year 
+          ? `registros_${year}.xlsx`
+          : 'todos_los_registros.xlsx';
+
+        // Guardar el archivo
+        XLSX.writeFile(wb, fileName);
+
+      } else if (type === 'pdf') {
+        // Crear nuevo documento PDF
+        const doc = new jsPDF();
+
+        // Agregar título
+        const title = year 
+          ? `Registros del Año ${year}`
+          : 'Todos los Registros';
+        
+        doc.setFontSize(16);
+        doc.text(title, 14, 15);
+
+        // Agregar fecha de generación
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(
+          `Generado el ${new Date().toLocaleDateString('es-ES')}`,
+          14, 
+          22
+        );
+
+        // Configurar la tabla
+        (doc as JsPDFWithAutoTable).autoTable({
+          head: [Object.keys(exportData[0])],
+          body: exportData.map(Object.values),
+          startY: 30,
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+          },
+          headStyles: {
+            fillColor: [0, 150, 136],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+          },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245],
+          },
+          margin: { top: 30 },
+        });
+
+        // Generar el nombre del archivo
+        const fileName = year 
+          ? `registros_${year}.pdf`
+          : 'todos_los_registros.pdf';
+
+        // Guardar el archivo
+        doc.save(fileName);
+      }
+
+      // Mostrar mensaje de éxito
       setToast({
         show: true,
-        message: `Archivo exportado correctamente a ${type.toUpperCase()}`,
+        message: `Archivo ${type.toUpperCase()} exportado correctamente${year ? ` para el año ${year}` : ''}`,
         type: 'success'
       });
-      setIsImportExportModalOpen(false);
+
     } catch (error) {
+      console.error('Error al exportar:', error);
       setToast({
         show: true,
         message: 'Error al exportar el archivo',

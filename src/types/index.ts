@@ -19,4 +19,12 @@ export interface FileRecord {
   shelf?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  storageNumbers?: {
+    caja?: string;
+    carpeta?: string;
+    tomo?: string;
+  };
+  boxNumber?: string;
+  folderNumber?: string;
+  volumeNumber?: string;
 }
