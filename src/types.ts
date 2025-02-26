@@ -9,12 +9,13 @@ export interface FileRecord {
   folioStart: number;
   folioEnd: number;
   support: string;
-  status: 'DISPONIBLE' | 'PRESTADO';
+  status: 'DISPONIBLE' | 'PRESTADO' | 'RETENIDO';
   borrowedDate?: string;
   borrowedTo?: string;
   block?: string;
   shelf?: string;
+  retentionReason?: string;
 }
 
-export type FileStatus = 'DISPONIBLE' | 'PRESTADO';
+export type FileStatus = 'DISPONIBLE' | 'PRESTADO' | 'RETENIDO';
 export type StorageUnit = 'CAJA' | 'CARPETA' | 'TOMO' | 'OTRO';

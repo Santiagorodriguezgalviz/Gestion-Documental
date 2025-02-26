@@ -10,7 +10,7 @@ import {
 } from '@tanstack/react-table';
 import { FileRecord } from '../types';
 import { useFileStore } from '../store/fileStore';
-import { FolderOpen, Pencil, Trash2, Plus, Calendar, Download, Grid, LayoutGrid, Search, RefreshCw, ChevronDown, Check, ChevronUp, ChevronLeft, ChevronRight, Box, Folder, Book, Info } from 'lucide-react';
+import { FolderOpen, Pencil, Trash2, Plus, Calendar, Download, Grid, LayoutGrid, Search, RefreshCw, ChevronDown, Check, ChevronUp, ChevronLeft, ChevronRight, Box, Folder, Book, Info, Lock } from 'lucide-react';
 import { FileModal } from './FileModal';
 import { ImportExportMenu } from './ImportExportMenu';
 import { BorrowModal } from './BorrowModal';
@@ -25,6 +25,7 @@ import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as Popover from '@radix-ui/react-popover';
+import { RetentionModal } from './RetentionModal';
 
 interface ExportData {
   'NO. ITEM': number;
@@ -87,6 +88,8 @@ export function DataTable() {
     type: 'success'
   });
   const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
+  const [retentionModalOpen, setRetentionModalOpen] = useState(false);
+  const [fileToRetain, setFileToRetain] = useState<FileRecord | null>(null);
   
   const files = useFileStore((state) => state.files);
   const filters = useFileStore((state) => state.filters);
@@ -305,15 +308,76 @@ export function DataTable() {
     }),
     columnHelper.accessor('status', {
       header: 'ESTADO',
-      cell: (info) => (
-        <span className={`px-2 py-1 rounded-full text-sm ${
-          info.getValue() === 'PRESTADO' 
-            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400' 
-            : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400'
-        }`}>
-          {info.getValue()}
-        </span>
-      ),
+      cell: (info) => {
+        const status = info.getValue();
+        const retentionReason = info.row.original.retentionReason;
+
+        if (status === 'RETENIDO') {
+          return (
+            <Popover.Root>
+              <Popover.Trigger asChild>
+                <button className="px-2 py-1 rounded-full text-sm bg-emerald-100 dark:bg-emerald-900/30 
+                  text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5 hover:bg-emerald-200 
+                  dark:hover:bg-emerald-900/40 transition-colors">
+                  <Lock className="h-3.5 w-3.5" />
+                  Retenido
+                </button>
+              </Popover.Trigger>
+
+              <Popover.Portal>
+                <Popover.Content
+                  className="z-50 w-72 rounded-lg bg-white dark:bg-gray-800 shadow-lg 
+                    ring-1 ring-black/5 dark:ring-white/5 p-4 animate-in 
+                    zoom-in-95 duration-200"
+                  sideOffset={5}
+                >
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-emerald-500" />
+                      Detalles de Retención
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      {retentionReason ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {retentionReason}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                          No se especificó un motivo de retención
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="h-px bg-gray-200 dark:bg-gray-700" />
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5" />
+                      Este archivo no puede ser prestado mientras esté retenido
+                    </div>
+                  </div>
+
+                  <Popover.Arrow className="fill-white dark:fill-gray-800" />
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover.Root>
+          );
+        } else if (status === 'PRESTADO') {
+          return (
+            <span className="px-2 py-1 rounded-full text-sm bg-yellow-100 dark:bg-yellow-900/30 
+              text-yellow-800 dark:text-yellow-400">
+              Prestado
+            </span>
+          );
+        } else {
+          return (
+            <span className="px-2 py-1 rounded-full text-sm bg-green-100 dark:bg-green-900/30 
+              text-green-800 dark:text-green-400">
+              Disponible
+            </span>
+          );
+        }
+      },
     }),
     columnHelper.accessor('borrowedTo', {
       header: 'PRESTADO A',
@@ -325,35 +389,52 @@ export function DataTable() {
       cell: (info) => {
         const file = info.row.original;
         const isPrestado = file.status === 'PRESTADO';
+        const isRetenido = file.status === 'RETENIDO';
 
         return (
           <div className="flex items-center gap-2">
             <button
               onClick={() => handleEdit(file)}
-              className="p-2 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              className="p-2 text-blue-500 hover:text-blue-700"
               title="Editar"
             >
               <Pencil className="h-4 w-4" />
             </button>
+            
+            {!isRetenido && (
+              <button
+                onClick={() => isPrestado ? handleReturn(file) : handleBorrow(file)}
+                className={`p-2 ${
+                  isPrestado 
+                    ? 'text-emerald-500 hover:text-emerald-700' 
+                    : 'text-yellow-500 hover:text-yellow-700'
+                }`}
+                title={isPrestado ? "Marcar como devuelto" : "Prestar"}
+              >
+                <FolderOpen className="h-4 w-4" />
+              </button>
+            )}
+
             <button
-              onClick={() => isPrestado ? handleReturn(file) : handleBorrow(file)}
-              className={`p-2 transition-colors ${
-                isPrestado 
-                  ? 'text-emerald-500 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300' 
-                  : 'text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-300'
+              onClick={() => handleRetention(file)}
+              className={`p-2 rounded-lg transition-colors ${
+                file.status === 'RETENIDO'
+                  ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
               }`}
-              title={isPrestado ? "Marcar como devuelto" : "Prestar"}
+              title={file.status === 'RETENIDO' ? 'Liberar archivo' : 'Retener archivo'}
             >
-              <FolderOpen className="h-4 w-4" />
+              <Lock className="w-4 h-4" />
             </button>
-          <button
+
+            <button
               onClick={() => handleDelete(file)}
-              className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            title="Eliminar"
-          >
+              className="p-2 text-red-500 hover:text-red-700"
+              title="Eliminar"
+            >
               <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+            </button>
+          </div>
         );
       },
     }),
@@ -424,8 +505,7 @@ export function DataTable() {
             message: 'Registro eliminado correctamente',
             type: 'success'
           });
-        } catch (error) {
-          console.error('Error al eliminar:', error);
+        } catch {
           setToast({
             show: true,
             message: 'Error al eliminar el registro',
@@ -697,11 +777,49 @@ export function DataTable() {
         type: 'success'
       });
 
-    } catch (error) {
-      console.error('Error al exportar:', error);
+    } catch {
       setToast({
         show: true,
         message: 'Error al exportar el archivo',
+        type: 'error'
+      });
+    }
+  };
+
+  const handleRetention = (file: FileRecord) => {
+    setFileToRetain(file);
+    setRetentionModalOpen(true);
+  };
+
+  const handleRetentionConfirm = async (retentionReason: string) => {
+    try {
+      if (!fileToRetain) return;
+      
+      const newStatus = fileToRetain.status === 'RETENIDO' ? 'DISPONIBLE' : 'RETENIDO';
+      
+      await fileService.updateFile(fileToRetain.id, {
+        ...fileToRetain,
+        status: newStatus,
+        retentionReason
+      });
+      
+      const updatedFiles = await fileService.getFiles();
+      setFiles(updatedFiles);
+      
+      setToast({
+        show: true,
+        message: newStatus === 'RETENIDO' 
+          ? 'Archivo retenido correctamente'
+          : 'Archivo liberado correctamente',
+        type: 'success'
+      });
+      
+      setRetentionModalOpen(false);
+      setFileToRetain(null);
+    } catch {
+      setToast({
+        show: true,
+        message: 'Error al cambiar el estado de retención',
         type: 'error'
       });
     }
@@ -990,6 +1108,13 @@ export function DataTable() {
         onClose={() => setIsImportExportModalOpen(false)}
         onImport={handleImport}
         onExport={handleExport}
+      />
+
+      <RetentionModal
+        isOpen={retentionModalOpen}
+        onClose={() => setRetentionModalOpen(false)}
+        onConfirm={handleRetentionConfirm}
+        isRetained={fileToRetain?.status === 'RETENIDO'}
       />
 
       {toast.show && (

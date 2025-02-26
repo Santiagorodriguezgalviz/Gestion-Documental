@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileText, Box, Layers, Grid, Folder, Book, Info } from 'lucide-react';
+import { Calendar, FileText, Box, Layers, Grid, Folder, Book, Info, Lock } from 'lucide-react';
 import { useFileStore } from '../store/fileStore';
 import { FileRecord, StorageUnit } from '../types';
-import DatePicker, { registerLocale } from 'react-datepicker';
-import { es } from 'date-fns/locale/es';
-import "react-datepicker/dist/react-datepicker.css";
+import { CustomDatePicker } from './DatePicker';
 import { fileService } from '../services/fileService';
 import * as Select from '@radix-ui/react-select'
 import { Check } from 'lucide-react'
-
-registerLocale('es', es);
 
 interface FileModalProps {
   isOpen: boolean;
@@ -62,7 +58,8 @@ export function FileModal({ isOpen, onClose, fileToEdit, onSuccess, onError }: F
       support: 'PAPEL',
       status: 'DISPONIBLE',
       block: '',
-      shelf: ''
+      shelf: '',
+      retentionReason: '',
   };
 
   const [formData, setFormData] = useState<Partial<FileRecord>>(fileToEdit || defaultFormData);
@@ -249,17 +246,10 @@ export function FileModal({ isOpen, onClose, fileToEdit, onSuccess, onError }: F
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             FECHA INICIAL
                           </label>
-                          <DatePicker
-                            selected={formData.startDate ? new Date(formData.startDate) : null}
+                          <CustomDatePicker
+                            value={formData.startDate ? new Date(formData.startDate) : null}
                             onChange={(date) => handleDateChange(date, 'startDate')}
-                            dateFormat="dd 'de' MMMM 'de' yyyy"
-                            locale="es"
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-                              bg-white dark:bg-gray-800 text-gray-900 dark:text-white 
-                              shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 
-                              dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 transition-all"
-                            placeholderText="Seleccionar fecha"
-                            isClearable
+                            placeholder="Seleccionar fecha inicial"
                           />
                         </div>
 
@@ -267,17 +257,10 @@ export function FileModal({ isOpen, onClose, fileToEdit, onSuccess, onError }: F
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                             FECHA FINAL
                           </label>
-                          <DatePicker
-                            selected={formData.endDate ? new Date(formData.endDate) : null}
+                          <CustomDatePicker
+                            value={formData.endDate ? new Date(formData.endDate) : null}
                             onChange={(date) => handleDateChange(date, 'endDate')}
-                            dateFormat="dd 'de' MMMM 'de' yyyy"
-                            locale="es"
-                            className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 
-                              bg-white dark:bg-gray-800 text-gray-900 dark:text-white 
-                              shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 
-                              dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20 transition-all"
-                            placeholderText="Seleccionar fecha"
-                            isClearable
+                            placeholder="Seleccionar fecha final"
                           />
                         </div>
                       </div>
@@ -476,6 +459,65 @@ export function FileModal({ isOpen, onClose, fileToEdit, onSuccess, onError }: F
                             required
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Sección de estado de retención */}
+                    <div className="col-span-2 space-y-6">
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <Lock size={16} />
+                        Estado de Retención
+                      </h3>
+                      
+                      <div className="space-y-4">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.status === 'RETENIDO'}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              status: e.target.checked ? 'RETENIDO' : 'DISPONIBLE',
+                              retentionReason: e.target.checked ? formData.retentionReason : ''
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 
+                            peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer 
+                            dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white 
+                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                            after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 
+                            after:transition-all dark:border-gray-600 peer-checked:bg-emerald-600
+                            hover:bg-gray-300 dark:hover:bg-gray-600 peer-checked:hover:bg-emerald-500"></div>
+                          <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                            {formData.status === 'RETENIDO' ? 'Archivo Retenido' : 'Archivo Disponible'}
+                          </span>
+                        </label>
+
+                        {formData.status === 'RETENIDO' && (
+                          <div className="space-y-2.5">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Motivo de Retención
+                            </label>
+                            <div className="relative">
+                              <textarea
+                                value={formData.retentionReason || ''}
+                                onChange={(e) => setFormData({ ...formData, retentionReason: e.target.value })}
+                                className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 dark:border-gray-600 
+                                  bg-white dark:bg-gray-800 text-gray-900 dark:text-white 
+                                  focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500
+                                  transition-all"
+                                placeholder="Describa el motivo de la retención..."
+                                rows={3}
+                                required={formData.status === 'RETENIDO'}
+                              />
+                              <Lock className="absolute left-3 top-3 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-1">
+                              <Info className="h-4 w-4" />
+                              Este archivo no podrá ser prestado mientras esté retenido
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

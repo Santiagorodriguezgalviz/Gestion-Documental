@@ -48,19 +48,12 @@ export const fileService = {
 
   async addFile(file: Omit<FileRecord, 'id'>) {
     try {
-      const fileData = {
-        ...file,
-        startDate: file.startDate ? Timestamp.fromDate(new Date(file.startDate)) : null,
-        endDate: file.endDate ? Timestamp.fromDate(new Date(file.endDate)) : null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        status: file.status || 'DISPONIBLE',
-        borrowedTo: null,
-        borrowedDate: null,
-        returnDate: null,
-      };
-      const docRef = await addDoc(collection(db, FILES_COLLECTION), fileData);
-      return { id: docRef.id, ...file };
+      const cleanedFile = Object.fromEntries(
+        Object.entries(file).filter(([_, value]) => value !== undefined)
+      );
+
+      const docRef = await addDoc(collection(db, FILES_COLLECTION), cleanedFile);
+      return docRef.id;
     } catch (error) {
       console.error('Error al agregar archivo:', error);
       throw error;
@@ -69,18 +62,11 @@ export const fileService = {
 
   async updateFile(id: string, file: Partial<FileRecord>) {
     try {
-      const updateData = {
-        ...file,
-        updatedAt: serverTimestamp(),
-      };
-      if (file.startDate) {
-        updateData.startDate = Timestamp.fromDate(new Date(file.startDate));
-      }
-      if (file.endDate) {
-        updateData.endDate = Timestamp.fromDate(new Date(file.endDate));
-      }
-      await updateDoc(doc(db, FILES_COLLECTION, id), updateData);
-      return { id, ...file };
+      const cleanedFile = Object.fromEntries(
+        Object.entries(file).filter(([_, value]) => value !== undefined)
+      );
+
+      await updateDoc(doc(db, FILES_COLLECTION, id), cleanedFile);
     } catch (error) {
       console.error('Error al actualizar archivo:', error);
       throw error;
