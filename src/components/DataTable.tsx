@@ -26,6 +26,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as Popover from '@radix-ui/react-popover';
 import { RetentionModal } from './RetentionModal';
+import { useAuth } from '../hooks/useAuth';
 
 interface ExportData {
   'NO. ITEM': number;
@@ -96,6 +97,7 @@ export function DataTable() {
   const setFilter = useFileStore((state) => state.setFilter);
   const clearFilters = useFileStore((state) => state.clearFilters);
   const setFiles = useFileStore((state) => state.setFiles);
+  const { user, canEdit } = useAuth();
 
   const formatDate = (date?: string) => {
     if (!date) return '-';
@@ -310,73 +312,33 @@ export function DataTable() {
       header: 'ESTADO',
       cell: (info) => {
         const status = info.getValue();
-        const retentionReason = info.row.original.retentionReason;
-
-        if (status === 'RETENIDO') {
-          return (
-            <Popover.Root>
-              <Popover.Trigger asChild>
-                <button className="px-2 py-1 rounded-full text-sm bg-emerald-100 dark:bg-emerald-900/30 
-                  text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5 hover:bg-emerald-200 
-                  dark:hover:bg-emerald-900/40 transition-colors">
-                  <Lock className="h-3.5 w-3.5" />
-                  Retenido
-                </button>
-              </Popover.Trigger>
-
-              <Popover.Portal>
-                <Popover.Content
-                  className="z-50 w-72 rounded-lg bg-white dark:bg-gray-800 shadow-lg 
-                    ring-1 ring-black/5 dark:ring-white/5 p-4 animate-in 
-                    zoom-in-95 duration-200"
-                  sideOffset={5}
-                >
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-emerald-500" />
-                      Detalles de Retención
-                    </h3>
-                    
-                    <div className="space-y-2">
-                      {retentionReason ? (
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {retentionReason}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                          No se especificó un motivo de retención
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="h-px bg-gray-200 dark:bg-gray-700" />
-
-                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
-                      <Info className="h-3.5 w-3.5" />
-                      Este archivo no puede ser prestado mientras esté retenido
-                    </div>
-                  </div>
-
-                  <Popover.Arrow className="fill-white dark:fill-gray-800" />
-                </Popover.Content>
-              </Popover.Portal>
-            </Popover.Root>
-          );
-        } else if (status === 'PRESTADO') {
-          return (
-            <span className="px-2 py-1 rounded-full text-sm bg-yellow-100 dark:bg-yellow-900/30 
-              text-yellow-800 dark:text-yellow-400">
-              Prestado
-            </span>
-          );
-        } else {
-          return (
-            <span className="px-2 py-1 rounded-full text-sm bg-green-100 dark:bg-green-900/30 
-              text-green-800 dark:text-green-400">
-              Disponible
-            </span>
-          );
-        }
+        return (
+          <span className={`px-2 py-1 text-sm rounded-full inline-flex items-center gap-1
+            ${status === 'PRESTADO' 
+              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+              : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+            }`}
+          >
+            {status === 'PRESTADO' ? 'Prestado' : 'Disponible'}
+          </span>
+        );
+      },
+    }),
+    columnHelper.accessor('retentionStatus', {
+      header: 'RETENCIÓN',
+      cell: (info) => {
+        const retentionStatus = info.getValue();
+        return (
+          <span className={`px-2 py-1 text-sm rounded-full inline-flex items-center gap-1
+            ${retentionStatus === 'RETENIDO' 
+              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+            }`}
+          >
+            <Lock className="h-3 w-3" />
+            {retentionStatus === 'RETENIDO' ? 'Retenido' : 'No Retenido'}
+          </span>
+        );
       },
     }),
     columnHelper.accessor('borrowedTo', {
@@ -389,51 +351,59 @@ export function DataTable() {
       cell: (info) => {
         const file = info.row.original;
         const isPrestado = file.status === 'PRESTADO';
-        const isRetenido = file.status === 'RETENIDO';
 
         return (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleEdit(file)}
-              className="p-2 text-blue-500 hover:text-blue-700"
-              title="Editar"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            
-            {!isRetenido && (
-              <button
-                onClick={() => isPrestado ? handleReturn(file) : handleBorrow(file)}
-                className={`p-2 ${
-                  isPrestado 
-                    ? 'text-emerald-500 hover:text-emerald-700' 
-                    : 'text-yellow-500 hover:text-yellow-700'
-                }`}
-                title={isPrestado ? "Marcar como devuelto" : "Prestar"}
-              >
-                <FolderOpen className="h-4 w-4" />
-              </button>
+            {user?.role === 'admin' ? (
+              <>
+                <button
+                  onClick={() => handleEdit(file)}
+                  className="p-2 text-blue-500 hover:text-blue-700"
+                  title="Editar"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+
+                {/* Botón de préstamo/devolución - siempre disponible */}
+                <button
+                  onClick={() => isPrestado ? handleReturn(file) : handleBorrow(file)}
+                  className={`p-2 ${
+                    isPrestado 
+                      ? 'text-emerald-500 hover:text-emerald-700' 
+                      : 'text-yellow-500 hover:text-yellow-700'
+                  }`}
+                  title={isPrestado ? "Marcar como devuelto" : "Prestar"}
+                >
+                  <FolderOpen className="h-4 w-4" />
+                </button>
+
+                {/* Botón de retención */}
+                <button
+                  onClick={() => handleRetention(file)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    file.retentionStatus === 'RETENIDO'
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  title={file.retentionStatus === 'RETENIDO' ? 'Liberar archivo' : 'Retener archivo'}
+                >
+                  <Lock className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => handleDelete(file)}
+                  className="p-2 text-red-500 hover:text-red-700"
+                  title="Eliminar"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <span className="text-sm text-gray-500">
+                {file.status}
+                {file.retentionStatus === 'RETENIDO' && ' - Retenido'}
+              </span>
             )}
-
-            <button
-              onClick={() => handleRetention(file)}
-              className={`p-2 rounded-lg transition-colors ${
-                file.status === 'RETENIDO'
-                  ? 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
-              }`}
-              title={file.status === 'RETENIDO' ? 'Liberar archivo' : 'Retener archivo'}
-            >
-              <Lock className="w-4 h-4" />
-            </button>
-
-            <button
-              onClick={() => handleDelete(file)}
-              className="p-2 text-red-500 hover:text-red-700"
-              title="Eliminar"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
           </div>
         );
       },
@@ -662,127 +632,38 @@ export function DataTable() {
     }
   };
 
-  const handleExport = (type: 'excel' | 'pdf', year?: string) => {
-    try {
-      // Filtrar los datos por año si se especifica
-      let dataToExport = files;
-      if (year) {
-        dataToExport = files.filter(file => {
-          const fileYear = file.startDate ? new Date(file.startDate).getFullYear().toString() : '';
-          return fileYear === year;
-        });
-      }
+  const handleExport = async (type: 'excel' | 'pdf', year?: string) => {
+    const dataToExport = files.map((file, index) => ({
+      'NO. ITEM': file.itemNumber,
+      'CÓDIGO': file.code || '-',
+      'NOMBRE DE LAS SERIES': file.name,
+      'FECHA INICIAL': formatDate(file.startDate),
+      'FECHA FINAL': formatDate(file.endDate),
+      'BLOQUE': file.block || '-',
+      'ENTREPAÑO': file.shelf || '-',
+      'UNIDAD DE CONSERVACIÓN': file.storageUnit,
+      'SOPORTE': file.support,
+      'ESTADO': file.status,
+      'PRESTADO A': file.borrowedTo || '-'
+    }));
 
-      // Preparar los datos para exportar
-      const exportData: ExportData[] = dataToExport.map((file, index) => ({
-        'NO. ITEM': index + 1,
-        'CÓDIGO': file.code || '-',
-        'NOMBRE DE LAS SERIES': file.name,
-        'FECHA INICIAL': formatDate(file.startDate),
-        'FECHA FINAL': formatDate(file.endDate),
-        'BLOQUE': file.block || '-',
-        'ENTREPAÑO': file.shelf || '-',
-        'UNIDAD DE CONSERVACIÓN': file.storageUnit,
-        'SOPORTE': file.support,
-        'ESTADO': file.status,
-        'PRESTADO A': file.borrowedTo || '-'
-      }));
-
-      if (type === 'excel') {
-        // Crear una nueva hoja de trabajo
-        const ws = XLSX.utils.json_to_sheet(exportData);
-
-        // Ajustar anchos de columna
-        const colWidths = [
-          { wch: 8 },   // NO. ITEM
-          { wch: 12 },  // CÓDIGO
-          { wch: 40 },  // NOMBRE DE LAS SERIES
-          { wch: 15 },  // FECHA INICIAL
-          { wch: 15 },  // FECHA FINAL
-          { wch: 10 },  // BLOQUE
-          { wch: 12 },  // ENTREPAÑO
-          { wch: 25 },  // UNIDAD DE CONSERVACIÓN
-          { wch: 12 },  // SOPORTE
-          { wch: 15 },  // ESTADO
-          { wch: 20 }   // PRESTADO A
-        ];
-        ws['!cols'] = colWidths;
-
-        // Crear libro de trabajo y agregar la hoja
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Registros");
-
-        // Generar el nombre del archivo
-        const fileName = year 
-          ? `registros_${year}.xlsx`
-          : 'todos_los_registros.xlsx';
-
-        // Guardar el archivo
-        XLSX.writeFile(wb, fileName);
-
-      } else if (type === 'pdf') {
-        // Crear nuevo documento PDF
-        const doc = new jsPDF();
-
-        // Agregar título
-        const title = year 
-          ? `Registros del Año ${year}`
-          : 'Todos los Registros';
-        
-        doc.setFontSize(16);
-        doc.text(title, 14, 15);
-
-        // Agregar fecha de generación
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text(
-          `Generado el ${new Date().toLocaleDateString('es-ES')}`,
-          14, 
-          22
-        );
-
-        // Configurar la tabla
-        (doc as JsPDFWithAutoTable).autoTable({
-          head: [Object.keys(exportData[0])],
-          body: exportData.map(Object.values),
-          startY: 30,
-          styles: {
-            fontSize: 8,
-            cellPadding: 2,
-          },
-          headStyles: {
-            fillColor: [0, 150, 136],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-          },
-          alternateRowStyles: {
-            fillColor: [245, 245, 245],
-          },
-          margin: { top: 30 },
-        });
-
-        // Generar el nombre del archivo
-        const fileName = year 
-          ? `registros_${year}.pdf`
-          : 'todos_los_registros.pdf';
-
-        // Guardar el archivo
-        doc.save(fileName);
-      }
-
-      // Mostrar mensaje de éxito
-      setToast({
-        show: true,
-        message: `Archivo ${type.toUpperCase()} exportado correctamente${year ? ` para el año ${year}` : ''}`,
-        type: 'success'
+    if (type === 'excel') {
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Archivos");
+      XLSX.writeFile(wb, "archivos.xlsx");
+    } else if (type === 'pdf') {
+      const doc = new jsPDF() as JsPDFWithAutoTable;
+      doc.autoTable({
+        head: [Object.keys(dataToExport[0])],
+        body: dataToExport.map(Object.values),
+        startY: 20,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [16, 185, 129] },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
+        margin: { top: 20 }
       });
-
-    } catch {
-      setToast({
-        show: true,
-        message: 'Error al exportar el archivo',
-        type: 'error'
-      });
+      doc.save("archivos.pdf");
     }
   };
 
@@ -791,38 +672,35 @@ export function DataTable() {
     setRetentionModalOpen(true);
   };
 
-  const handleRetentionConfirm = async (retentionReason: string) => {
+  const handleRetentionConfirm = async () => {
+    if (!fileToRetain) return;
+
     try {
-      if (!fileToRetain) return;
-      
-      const newStatus = fileToRetain.status === 'RETENIDO' ? 'DISPONIBLE' : 'RETENIDO';
-      
+      const newRetentionStatus = fileToRetain.retentionStatus === 'RETENIDO' ? 'NO_RETENIDO' : 'RETENIDO';
       await fileService.updateFile(fileToRetain.id, {
         ...fileToRetain,
-        status: newStatus,
-        retentionReason
+        retentionStatus: newRetentionStatus
       });
-      
-      const updatedFiles = await fileService.getFiles();
-      setFiles(updatedFiles);
-      
+
       setToast({
         show: true,
-        message: newStatus === 'RETENIDO' 
-          ? 'Archivo retenido correctamente'
-          : 'Archivo liberado correctamente',
+        message: `Archivo ${newRetentionStatus === 'RETENIDO' ? 'retenido' : 'liberado'} exitosamente`,
         type: 'success'
       });
-      
-      setRetentionModalOpen(false);
-      setFileToRetain(null);
-    } catch {
+
+      // Actualizar la lista de archivos
+      const updatedFiles = await fileService.getFiles();
+      setFiles(updatedFiles);
+    } catch (error) {
       setToast({
         show: true,
-        message: 'Error al cambiar el estado de retención',
+        message: 'Error al actualizar el estado de retención',
         type: 'error'
       });
     }
+
+    setRetentionModalOpen(false);
+    setFileToRetain(null);
   };
 
   return (
@@ -874,32 +752,34 @@ export function DataTable() {
                 </button>
               )}
 
-              <button
-                onClick={() => setIsImportExportModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium 
-                  text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 
-                  border border-gray-300 dark:border-gray-600 rounded-lg
-                  hover:bg-gray-50 dark:hover:bg-gray-700/50
-                  focus:outline-none focus:ring-2 focus:ring-emerald-500
-                  transition-colors"
-              >
-                <Download className="h-5 w-5" />
-                Importar/Exportar
-              </button>
+              {/* Botones de acción - Solo para admin */}
+              {user?.role === 'admin' && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleAddNew}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white 
+                      bg-emerald-600 rounded-lg hover:bg-emerald-500 focus:outline-none focus:ring-2 
+                      focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nuevo Archivo
+                  </button>
 
-          <button
-            onClick={handleAddNew}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium 
-                  text-white bg-emerald-600 rounded-lg
-                  hover:bg-emerald-500 focus:outline-none focus:ring-2 
-                  focus:ring-offset-2 focus:ring-emerald-500
-                  transition-colors"
-              >
-                <Plus className="h-5 w-5" />
-            Agregar Nuevo
-          </button>
-        </div>
-      </div>
+                  {/* Reemplazar los botones separados por uno solo */}
+                  <button
+                    onClick={() => setIsImportExportModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium 
+                      text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 
+                      border border-gray-300 dark:border-gray-600 rounded-lg
+                      hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Importar/Exportar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Filters */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -1106,7 +986,6 @@ export function DataTable() {
       <ImportExportModal
         isOpen={isImportExportModalOpen}
         onClose={() => setIsImportExportModalOpen(false)}
-        onImport={handleImport}
         onExport={handleExport}
       />
 
@@ -1114,7 +993,7 @@ export function DataTable() {
         isOpen={retentionModalOpen}
         onClose={() => setRetentionModalOpen(false)}
         onConfirm={handleRetentionConfirm}
-        isRetained={fileToRetain?.status === 'RETENIDO'}
+        isRetained={fileToRetain?.retentionStatus === 'RETENIDO'}
       />
 
       {toast.show && (

@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertModal } from './AlertModal';
+import { UserProfile } from './UserProfile';
 
 export function Navbar() {
   const { theme, toggleTheme } = useTheme();
@@ -124,6 +125,8 @@ export function Navbar() {
               </div>
             )}
           </div>
+
+          <UserProfile />
         </div>
       </div>
 

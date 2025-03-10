@@ -9,7 +9,8 @@ export interface FileRecord {
   folioStart: number;
   folioEnd: number;
   support: string;
-  status: 'DISPONIBLE' | 'PRESTADO' | 'RETENIDO';
+  status: 'DISPONIBLE' | 'PRESTADO';
+  retentionStatus: 'RETENIDO' | 'NO_RETENIDO';
   borrowedDate?: string;
   borrowedTo?: string;
   block?: string;
